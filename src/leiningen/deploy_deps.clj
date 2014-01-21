@@ -200,8 +200,9 @@ each deploy."
            (doseq [files all-files
                    :let [repo (if (snapshot? files)
                                 @snapshots-repo
-                                @releases-repo)
-                         repo-name (if (snapshot? files)
+                                @releases-repo)]
+                   :when repo
+                   :let [repo-name (if (snapshot? files)
                                      snapshots-repository-name
                                      releases-repository-name)
                          repo-map (apply hash-map repo)]]
