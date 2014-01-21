@@ -214,5 +214,4 @@ each deploy."
              (when main/*debug* (.printStackTrace e))
              (main/abort (abort-message (.getMessage e))))))))
   ([project releases-repository-name]
-     (deploy-deps project releases-repository-name "snapshots"))
-  ([project] (deploy-deps project "releases" "snapshots")))
+     (deploy-deps project releases-repository-name nil)))
