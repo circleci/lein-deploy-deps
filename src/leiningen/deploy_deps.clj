@@ -187,8 +187,10 @@ each deploy."
   ([project releases-repository-name snapshots-repository-name]
      (with-redefs [deploy/add-auth-interactively add-auth-interactively]
        (let [releases-repo (delay (deploy/repo-for project releases-repository-name))
-             snapshots-repo (delay (deploy/repo-for project snapshots-repository-name))
-             all-repo-map (into {} (:repositories project))
+             snapshots-repo (delay (when snapshots-repository-name
+                                     (deploy/repo-for project snapshots-repository-name)))
+             all-repo-map (into {} (map (fn [[name repo]]
+                                          [name (leiningen.core.user/resolve-credentials repo)]) (:repositories project)))
              all-files (files-for project)
              parent-poms (apply set/union (map (fn [dep-map]
                                                  (resolve-parent-poms (:coordinates dep-map) all-repo-map)) all-files))
