@@ -29,8 +29,38 @@
 ;; Alias get-dependencies because it is private...
 (def get-dependencies #'leiningen.core.classpath/get-dependencies)
 
+(defn project-repo-map
+  "Returns the map of all repos. Use for resolving, not deploying"
+  [project]
+  (into {} (map (fn [[name repo]]
+                  [name (leiningen.core.user/resolve-credentials repo)]) (:repositories project))))
+
+(defn flatten-depmap
+  "Takes a map of dependencies returned by aether/resolve-dependencies, returns a set of all coords contained"
+  [dep-map]
+  (set/union (set (keys dep-map)) (set (apply concat (vals dep-map)))))
+
+(defn resolve-all-deps
+  "Maven likes to fetch all deps before resolving locally, so make sure all deps-of-deps exist too. Returns a set of coords"
+  [coord repo-map]
+  (loop [output #{}
+         input #{coord}]
+    (if (seq input)
+      (let [coord (first input)
+            _ (println "resolving" coord)
+            result (aether/resolve-dependencies :coordinates [coord] :repositories repo-map)
+            new-coords (disj (flatten-depmap result) coord)
+            new-unchecked (set/difference new-coords output)]
+        (when (get new-coords '[org.clojure/clojure-contrib "1.1.0"])
+          (println coord "depends on" '[org.clojure/clojure-contrib "1.1.0"]))
+        (recur (set/union output #{coord}) (set/union (disj input coord) new-unchecked)))
+      output)))
+
 (defn deps-for [project]
-  (concat (keys (get-dependencies :plugins project)) (keys (get-dependencies :dependencies project))))
+  (->> (concat (keys (get-dependencies :plugins project)) (keys (get-dependencies :dependencies project)))
+       (map (fn [coord]
+              (resolve-all-deps coord (project-repo-map project))))
+       (apply set/union)))
 
 (defn jars-for [deps] (map (comp :file meta) deps))
 
@@ -189,9 +219,9 @@ each deploy."
        (let [releases-repo (delay (deploy/repo-for project releases-repository-name))
              snapshots-repo (delay (when snapshots-repository-name
                                      (deploy/repo-for project snapshots-repository-name)))
-             all-repo-map (into {} (map (fn [[name repo]]
-                                          [name (leiningen.core.user/resolve-credentials repo)]) (:repositories project)))
+
              all-files (files-for project)
+             all-repo-map (project-repo-map project)
              parent-poms (apply set/union (map (fn [dep-map]
                                                  (resolve-parent-poms (:coordinates dep-map) all-repo-map)) all-files))
              all-files (concat parent-poms all-files) ;; want parent-poms first, because they screw up dep resolution if they're not present
