@@ -1,4 +1,4 @@
-(defproject circle/lein-deploy-deps "0.1.3"
+(defproject circle/lein-deploy-deps "0.1.4"
   :description "Deploy project dependencies to a remote repository"
   :url "https://github.com/neatonk/lein-deploy-deps"
   :license {:name "Eclipse Public License"
